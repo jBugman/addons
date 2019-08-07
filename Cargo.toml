@@ -1,0 +1,8 @@
+[package]
+name = "addons"
+version = "0.1.0"
+authors = ["Sergey Parshukov <codedby@bugman.me>"]
+license = "MIT"
+edition = "2018"
+
+[dependencies]
