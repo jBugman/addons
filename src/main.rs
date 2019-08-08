@@ -2,8 +2,10 @@ mod addon;
 mod error;
 
 fn main() -> error::Result<()> {
-    for addon in addon::list_installed(addon::Dir::Default)? {
-        println!("{:?}", addon);
-    }
+    let list = addon::list_installed(addon::Dir::Default)?;
+    let a = list.first().unwrap();
+    println!("{:#?}", a);
+    let toc = a.get_toc()?;
+    println!("{:#?}", toc);
     Ok(())
 }

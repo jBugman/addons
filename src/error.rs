@@ -1,5 +1,5 @@
 #[derive(Debug)]
-pub(crate) enum Error {
+pub enum Error {
     New(&'static str),
     IOError(std::io::Error),
 }
