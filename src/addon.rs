@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
+
+use semver_parser::parser::Error as SemverErr;
+use semver_parser::version;
 
 use crate::error::{Error, Result};
 
@@ -17,6 +21,7 @@ pub enum Dir<'a> {
 pub struct Addon {
     pub name: String,
     dir: PathBuf,
+    toc: TOC,
 }
 
 impl TryFrom<PathBuf> for Addon {
@@ -29,7 +34,14 @@ impl TryFrom<PathBuf> for Addon {
             .to_str()
             .ok_or(Error::New("not a valid utf8"))?
             .to_owned();
-        Ok(Addon { name, dir: path })
+
+        let toc = get_toc(&name, &path)?;
+
+        Ok(Addon {
+            name,
+            dir: path,
+            toc,
+        })
     }
 }
 
@@ -47,25 +59,32 @@ pub fn list_installed(addon_dir: Dir) -> Result<Vec<Addon>> {
         .collect()
 }
 
-impl Addon {
-    pub(crate) fn get_toc(&self) -> Result<TOC> {
-        let filename = Path::new(&self.name).with_extension("toc");
-        let path = self.dir.join(filename);
-        TOC::parse(path)
+impl fmt::Display for Addon {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.toc.version {
+            Some(v) => write!(f, "{} {}", self.name, v),
+            None => write!(f, "{}", self.name),
+        }
     }
+}
+
+fn get_toc(name: &str, dir: &Path) -> Result<TOC> {
+    let filename = Path::new(name).with_extension("toc");
+    let path = dir.join(filename);
+    TOC::parse(&path).map_err(|e| {
+        println!("TOC parsing error in: {:?}", path);
+        e
+    })
 }
 
 #[derive(Debug)]
 pub(crate) struct TOC {
-    interface: u32,
-    version: Version,
+    version: Option<version::Version>,
     tags: HashMap<TagName, TagValue>,
 }
 
-type Version = String;
-
 impl TOC {
-    fn parse<P: AsRef<Path>>(path: P) -> Result<TOC> {
+    fn parse(path: &Path) -> Result<TOC> {
         use std::io::BufRead;
 
         let file = fs::File::open(path)?;
@@ -81,11 +100,29 @@ impl TOC {
             tags.insert(tag, value);
         }
 
-        Ok(TOC {
-            tags,
-            interface: 0,
-            version: String::from(""),
-        })
+        let version = tags.get("Version");
+        let version = match version {
+            None => None,
+            Some(v) => Some(parse_version(v)?),
+        };
+
+        Ok(TOC { tags, version })
+    }
+}
+
+fn parse_version(s: &str) -> Result<version::Version> {
+    let version = version::parse(s);
+    match version {
+        Err(SemverErr::UnexpectedEnd) => {
+            let s = format!("{}.0", s);
+            parse_version(&s)
+        }
+        Err(SemverErr::UnexpectedToken(_)) => {
+            let s = s.chars().skip(1).collect::<String>();
+            parse_version(&s)
+        }
+        Err(e) => Err(e.into()),
+        Ok(v) => Ok(v),
     }
 }
 
@@ -99,7 +136,7 @@ impl Tag {
     const TAG_MARKER: &'static str = "##";
 
     pub(crate) fn from_line(line: &str) -> Option<Tag> {
-        let line = line.trim();
+        let line = line.trim().trim_matches('\u{feff}');
         if !line.starts_with(Self::TAG_MARKER) {
             return None;
         }
