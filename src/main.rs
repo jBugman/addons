@@ -8,9 +8,14 @@ mod error;
 enum CLI {
     #[structopt(name = "list", about = "Lists installed addons")]
     ListInstalled,
+    #[structopt(name = "info", about = "Shows detailed info about an installed addon")]
+    Info {
+        #[structopt(name = "addon_name")]
+        name: String,
+    },
 }
 
-fn main() -> Result<(), error::Error> {
+fn main() -> error::Result<()> {
     let app = CLI::from_args();
     match &app {
         CLI::ListInstalled => {
@@ -20,6 +25,11 @@ fn main() -> Result<(), error::Error> {
                 println!("{}", a);
             }
         }
+
+        CLI::Info { name } => {
+            let addon = addon::by_name(addon::Dir::Default, name)?;
+            println!("{}", addon.description());
+    }
     }
     Ok(())
 }

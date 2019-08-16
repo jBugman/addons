@@ -3,6 +3,7 @@ pub enum Error {
     New(&'static str),
     IOError(std::io::Error),
     VersionError(String),
+    NotFound,
 }
 
 pub(crate) type Result<T> = std::result::Result<T, Error>;

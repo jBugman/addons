@@ -45,18 +45,51 @@ impl TryFrom<PathBuf> for Addon {
     }
 }
 
-pub fn list_installed(addon_dir: Dir) -> Result<Vec<Addon>> {
-    let addon_dir = match addon_dir {
+impl Addon {
+    pub fn description(&self) -> String {
+        let mut lines = Vec::new();
+        lines.push(format!("{}", self));
+        let notes = self.toc.tags.get("Notes");
+        if notes.is_some() {
+            lines.push(notes.unwrap().to_string());
+        }
+        let author = self.toc.tags.get("Author");
+        if author.is_some() {
+            lines.push(format!("Author: {}", author.unwrap()));
+        }
+        lines.push(format!("Path: {:?}", self.dir));
+        let deps = self.toc.tags.get("Dependencies");
+        if deps.is_some() {
+            lines.push(format!("Dependencies: {}", deps.unwrap()));
+        }
+        lines.join("\n")
+    }
+}
+
+fn list_addon_folders(addons_dir: Dir) -> Result<impl Iterator<Item = PathBuf>> {
+    let addons_dir = match addons_dir {
         Dir::Custom(path) => path,
         Dir::Default => Path::new(DEFAULT_DIR),
     };
-    let dir_contents = fs::read_dir(addon_dir)?;
-    dir_contents
+    let dir_contents = fs::read_dir(addons_dir)?;
+    let addon_folders = dir_contents
         .filter_map(|r| r.ok())
         .map(|e| e.path())
-        .filter(|p| p.is_dir())
-        .map(Addon::try_from)
-        .collect()
+        .filter(|p| p.is_dir());
+    Ok(addon_folders)
+}
+
+pub fn list_installed(addons_dir: Dir) -> Result<Vec<Addon>> {
+    let addon_folders = list_addon_folders(addons_dir)?;
+    addon_folders.map(Addon::try_from).collect()
+}
+
+pub fn by_name(addons_dir: Dir, name: &str) -> Result<Addon> {
+    let mut addon_folders = list_addon_folders(addons_dir)?;
+    let name = name.to_lowercase();
+    let addon =
+        addon_folders.find(|f| f.file_name().unwrap().to_string_lossy().to_lowercase() == name);
+    addon.ok_or(Error::NotFound).and_then(Addon::try_from)
 }
 
 impl fmt::Display for Addon {
