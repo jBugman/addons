@@ -127,7 +127,7 @@ impl TOC {
             let line = line?;
             let tag = Tag::from_line(&line);
             if tag.is_none() {
-                break;
+                continue;
             }
             let Tag(tag, value) = tag.unwrap();
             tags.insert(tag, value);
