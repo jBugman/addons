@@ -63,9 +63,9 @@ impl Addon {
             lines.push(format!("Author: {}", author.unwrap()));
         }
         lines.push(format!("Path: {:?}", self.dir));
-        let deps = self.toc.tags.get("Dependencies");
-        if deps.is_some() {
-            lines.push(format!("Dependencies: {}", deps.unwrap()));
+        let deps = self.toc.dependencies();
+        if !deps.is_empty() {
+            lines.push(format!("Dependencies: {}", deps.join(", ")));
         }
         lines.join("\n")
     }
@@ -138,6 +138,13 @@ impl TOC {
         };
 
         Ok(TOC { tags, version })
+    }
+
+    pub fn dependencies(&self) -> Vec<String> {
+        let deps = self.tags.get("Dependencies");
+        deps.map_or_else(Vec::new, |deps| {
+            deps.split(", ").map(|s| s.trim().to_string()).collect()
+        })
     }
 }
 
