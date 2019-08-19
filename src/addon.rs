@@ -84,9 +84,9 @@ pub fn list_installed(addons_dir: Dir) -> Result<Vec<Addon>> {
     addon_folders.map(Addon::try_from).collect()
 }
 
-pub fn by_name(addons_dir: Dir, name: &str) -> Result<Addon> {
+pub fn by_name(addons_dir: Dir, name: impl AsRef<str>) -> Result<Addon> {
     let mut addon_folders = list_addon_folders(addons_dir)?;
-    let name = name.to_lowercase();
+    let name = name.as_ref().to_lowercase();
     let addon =
         addon_folders.find(|f| f.file_name().unwrap().to_string_lossy().to_lowercase() == name);
     addon.ok_or(Error::NotFound).and_then(Addon::try_from)
@@ -101,9 +101,9 @@ impl fmt::Display for Addon {
     }
 }
 
-fn get_toc(name: &str, dir: &Path) -> Result<TOC> {
-    let filename = Path::new(name).with_extension("toc");
-    let path = dir.join(filename);
+fn get_toc(name: impl AsRef<str>, dir: impl AsRef<Path>) -> Result<TOC> {
+    let filename = Path::new(name.as_ref()).with_extension("toc");
+    let path = dir.as_ref().join(filename);
     TOC::parse(&path).map_err(|e| {
         println!("TOC parsing error in: {:?}", path);
         e
@@ -117,7 +117,7 @@ pub(crate) struct TOC {
 }
 
 impl TOC {
-    fn parse(path: &Path) -> Result<TOC> {
+    fn parse(path: impl AsRef<Path>) -> Result<TOC> {
         use std::io::BufRead;
 
         let file = fs::File::open(path)?;
@@ -143,7 +143,8 @@ impl TOC {
     }
 }
 
-fn parse_version(s: &str) -> Result<version::Version> {
+fn parse_version(s: impl AsRef<str>) -> Result<version::Version> {
+    let s = s.as_ref();
     let version = version::parse(s);
     match version {
         Err(SemverErr::UnexpectedEnd) => {
@@ -168,8 +169,8 @@ struct Tag(TagName, TagValue);
 impl Tag {
     const TAG_MARKER: &'static str = "##";
 
-    pub(crate) fn from_line(line: &str) -> Option<Tag> {
-        let line = line.trim().trim_matches('\u{feff}');
+    pub fn from_line(line: impl AsRef<str>) -> Option<Tag> {
+        let line = line.as_ref().trim().trim_matches('\u{feff}');
         if !line.starts_with(Self::TAG_MARKER) {
             return None;
         }
