@@ -35,7 +35,12 @@ impl TryFrom<PathBuf> for Addon {
             .ok_or(Error::New("not a valid utf8"))?
             .to_owned();
 
-        let toc = get_toc(&name, &path)?;
+        let toc_filename = Path::new(&name).with_extension("toc");
+        let toc_path = path.join(toc_filename);
+        let toc = TOC::parse(&toc_path).map_err(|e| {
+            println!("TOC parsing error in: {:?}", toc_path);
+            e
+        })?;
 
         Ok(Addon {
             name,
@@ -87,9 +92,11 @@ pub fn list_installed(addons_dir: Dir) -> Result<Vec<Addon>> {
 pub fn by_name(addons_dir: Dir, name: impl AsRef<str>) -> Result<Addon> {
     let mut addon_folders = list_addon_folders(addons_dir)?;
     let name = name.as_ref().to_lowercase();
-    let addon =
+    let addon_folder =
         addon_folders.find(|f| f.file_name().unwrap().to_string_lossy().to_lowercase() == name);
-    addon.ok_or(Error::NotFound).and_then(Addon::try_from)
+    addon_folder
+        .ok_or(Error::NotFound)
+        .and_then(Addon::try_from)
 }
 
 impl fmt::Display for Addon {
@@ -99,15 +106,6 @@ impl fmt::Display for Addon {
             None => write!(f, "{}", self.name),
         }
     }
-}
-
-fn get_toc(name: impl AsRef<str>, dir: impl AsRef<Path>) -> Result<TOC> {
-    let filename = Path::new(name.as_ref()).with_extension("toc");
-    let path = dir.as_ref().join(filename);
-    TOC::parse(&path).map_err(|e| {
-        println!("TOC parsing error in: {:?}", path);
-        e
-    })
 }
 
 #[derive(Debug)]
