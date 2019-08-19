@@ -55,12 +55,12 @@ impl Addon {
         let mut lines = Vec::new();
         lines.push(format!("{}", self));
         let notes = self.toc.tags.get("Notes");
-        if notes.is_some() {
-            lines.push(notes.unwrap().to_string());
+        if let Some(notes) = notes {
+            lines.push(notes.to_string());
         }
         let author = self.toc.tags.get("Author");
-        if author.is_some() {
-            lines.push(format!("Author: {}", author.unwrap()));
+        if let Some(author) = author {
+            lines.push(format!("Author: {}", author));
         }
         lines.push(format!("Path: {:?}", self.dir));
         let deps = self.toc.dependencies();
@@ -124,11 +124,10 @@ impl TOC {
         for line in file.lines() {
             let line = line?;
             let tag = Tag::from_line(&line);
-            if tag.is_none() {
-                continue;
+            if let Some(tag) = tag {
+                let Tag(tag, value) = tag;
+                tags.insert(tag, value);
             }
-            let Tag(tag, value) = tag.unwrap();
-            tags.insert(tag, value);
         }
 
         let version = tags.get("Version");
